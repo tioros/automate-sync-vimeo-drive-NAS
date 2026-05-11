@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Login — Drive → Vimeo Sync{% endblock %}
+
+{% block fullpage %}
+<div class="min-h-screen flex items-center justify-center bg-surface-950 relative overflow-hidden">
+    <!-- Animated background -->
+    <div class="absolute inset-0 overflow-hidden">
+        <div class="absolute -top-40 -right-40 w-80 h-80 bg-brand-600/10 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-40 -left-40 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-500/5 rounded-full blur-3xl animate-pulse-soft"></div>
+    </div>
+    
+    <div class="glass-card p-8 w-full max-w-md relative z-10">
+        <!-- Logo -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-600/20 border border-brand-500/30 mb-4">
+                <svg class="w-8 h-8 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold gradient-text">Drive → Vimeo Sync</h1>
+            <p class="text-gray-500 text-sm mt-2">Faça login para acessar o dashboard</p>
+        </div>
+        
+        <!-- Error message -->
+        <div id="login-error" class="hidden mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm"></div>
+        
+        <!-- Form -->
+        <form id="login-form" class="space-y-5">
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-300 mb-2">E-mail</label>
+                <input type="email" id="email" name="email" required autocomplete="email"
+                    class="w-full px-4 py-3 bg-surface-800/80 border border-surface-700/50 rounded-xl text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50 transition-all"
+                    placeholder="admin@drivevimeo.local">
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-300 mb-2">Senha</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password"
+                    class="w-full px-4 py-3 bg-surface-800/80 border border-surface-700/50 rounded-xl text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50 transition-all"
+                    placeholder="••••••••">
+            </div>
+            <button type="submit" id="login-btn"
+                class="w-full py-3 px-4 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-brand-600/25">
+                Entrar
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('login-btn');
+        const errorEl = document.getElementById('login-error');
+        
+        btn.disabled = true;
+        btn.textContent = 'Autenticando...';
+        errorEl.classList.add('hidden');
+        
+        try {
+            const res = await fetch('/api/v1/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: document.getElementById('email').value,
+                    password: document.getElementById('password').value,
+                }),
+            });
+            
+            if (res.ok) {
+                window.location.href = '/';
+            } else {
+                const data = await res.json().catch(() => ({}));
+                errorEl.textContent = data.detail || 'Erro ao autenticar';
+                errorEl.classList.remove('hidden');
+            }
+        } catch (err) {
+            errorEl.textContent = 'Não foi possível conectar à API';
+            errorEl.classList.remove('hidden');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Entrar';
+        }
+    });
+</script>
+{% endblock %}

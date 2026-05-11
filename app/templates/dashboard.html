@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Drive → Vimeo Sync{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block admin_actions %}
+<button onclick="triggerScan()" id="btn-scan"
+    class="inline-flex items-center gap-2 px-4 py-2 bg-brand-600/80 hover:bg-brand-500 text-white text-sm font-medium rounded-lg transition-all duration-200 border border-brand-500/30">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+    Scan Manual
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- Config Warning Banner -->
+<div id="config-warning" class="hidden mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm flex items-center gap-3">
+    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+    <span>Configure a pasta raiz para iniciar o monitoramento. <a href="/config" class="underline font-medium hover:text-amber-300">Configurar agora →</a></span>
+</div>
+
+<!-- Summary Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+    <div class="glass-card p-5">
+        <div class="flex items-center justify-between mb-3">
+            <span class="text-gray-400 text-sm font-medium">Total de Arquivos</span>
+            <div class="w-10 h-10 rounded-xl bg-brand-600/20 flex items-center justify-center">
+                <svg class="w-5 h-5 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 0h10m-10 0H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2"/></svg>
+            </div>
+        </div>
+        <p class="text-3xl font-bold text-white" id="total-files">—</p>
+    </div>
+    <div class="glass-card p-5">
+        <div class="flex items-center justify-between mb-3">
+            <span class="text-gray-400 text-sm font-medium">Concluídos</span>
+            <div class="w-10 h-10 rounded-xl bg-emerald-600/20 flex items-center justify-center">
+                <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            </div>
+        </div>
+        <p class="text-3xl font-bold text-emerald-400" id="total-success">—</p>
+    </div>
+    <div class="glass-card p-5">
+        <div class="flex items-center justify-between mb-3">
+            <span class="text-gray-400 text-sm font-medium">Erros</span>
+            <div class="w-10 h-10 rounded-xl bg-red-600/20 flex items-center justify-center">
+                <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </div>
+        </div>
+        <p class="text-3xl font-bold text-red-400" id="total-errors">—</p>
+    </div>
+    <div class="glass-card p-5">
+        <div class="flex items-center justify-between mb-3">
+            <span class="text-gray-400 text-sm font-medium">Em Processamento</span>
+            <div class="w-10 h-10 rounded-xl bg-amber-600/20 flex items-center justify-center">
+                <svg class="w-5 h-5 text-amber-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </div>
+        </div>
+        <p class="text-3xl font-bold text-amber-400" id="total-processing">—</p>
+    </div>
+</div>
+
+<!-- Per-Folder Progress -->
+<div class="glass-card p-6 mb-8">
+    <h3 class="text-base font-semibold text-gray-200 mb-5 flex items-center gap-2">
+        <svg class="w-5 h-5 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+        Progresso por Pasta
+    </h3>
+    <div id="folder-progress" class="space-y-4">
+        <p class="text-gray-500 text-sm">Carregando...</p>
+    </div>
+</div>
+
+<!-- Error Files -->
+<div class="glass-card p-6">
+    <h3 class="text-base font-semibold text-gray-200 mb-5 flex items-center gap-2">
+        <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Arquivos com Erro
+    </h3>
+    <div id="error-list">
+        <p class="text-gray-500 text-sm">Carregando...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const isAdmin = '{{ user.role }}' === 'admin';
+
+    async function loadDashboard() {
+        // Load summary
+        const summaryRes = await apiCall('/api/v1/reports/summary');
+        if (summaryRes) {
+            const data = await summaryRes.json();
+            document.getElementById('total-files').textContent = data.total_files || 0;
+            document.getElementById('total-success').textContent = data.by_status?.SUCCESS || 0;
+            document.getElementById('total-errors').textContent = data.by_status?.ERROR || 0;
+            const processing = (data.by_status?.DISCOVERED || 0) + (data.by_status?.DRIVE_SYNC_PENDING || 0) + 
+                               (data.by_status?.DRIVE_READY || 0) + (data.by_status?.VIMEO_UPLOADING || 0) + 
+                               (data.by_status?.VIMEO_TRANSCODING || 0);
+            document.getElementById('total-processing').textContent = processing;
+        }
+
+        // Check config
+        const configRes = await apiCall('/api/v1/config');
+        if (configRes) {
+            const cfg = await configRes.json();
+            if (!cfg.drive_root_folder_id) {
+                document.getElementById('config-warning').classList.remove('hidden');
+            }
+        }
+
+        // Load folder progress
+        const folderRes = await apiCall('/api/v1/reports/by-folder');
+        if (folderRes) {
+            const folders = await folderRes.json();
+            const container = document.getElementById('folder-progress');
+            if (folders.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-sm">Nenhuma pasta encontrada</p>';
+            } else {
+                container.innerHTML = folders.map(f => {
+                    const success = f.counts?.SUCCESS || 0;
+                    const total = f.total || 1;
+                    const pct = Math.round((success / total) * 100);
+                    const isComplete = pct === 100;
+                    const barColor = isComplete ? 'bg-emerald-500' : 'bg-brand-500';
+                    return `
+                        <div class="flex items-center gap-4">
+                            <div class="w-56 text-sm text-gray-300 truncate font-mono" title="${f.relative_path}">${f.relative_path}</div>
+                            <div class="flex-1 h-2.5 bg-surface-700 rounded-full overflow-hidden">
+                                <div class="h-full ${barColor} rounded-full progress-bar-fill" style="width: ${pct}%"></div>
+                            </div>
+                            <div class="w-32 text-right text-sm text-gray-400">${success}/${total} <span class="text-xs">(${pct}%)</span></div>
+                            ${isComplete ? '<span class="text-emerald-400 text-sm">✅</span>' : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // Load errors
+        const errRes = await apiCall('/api/v1/videos?status=ERROR&page_size=20');
+        if (errRes) {
+            const errData = await errRes.json();
+            const container = document.getElementById('error-list');
+            if (errData.items.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-sm">Nenhum erro encontrado 🎉</p>';
+            } else {
+                container.innerHTML = `
+                    <div class="space-y-2">
+                        ${errData.items.map(v => `
+                            <div class="flex items-center justify-between p-3 rounded-lg bg-surface-800/50 border border-surface-700/30 hover:border-red-500/20 transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-red-400">❌</span>
+                                    <div>
+                                        <a href="/videos/${v.id}" class="text-sm font-medium text-gray-200 hover:text-brand-400 transition-colors">${v.filename}</a>
+                                        <p class="text-xs text-gray-500 font-mono">${v.relative_path}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-xs text-gray-500">tentativas: ${v.retry_count}</span>
+                                    ${isAdmin ? `<button onclick="retryVideo('${v.id}')" class="px-3 py-1.5 bg-brand-600/80 hover:bg-brand-500 text-white text-xs font-medium rounded-lg transition-all">Retry</button>` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+        }
+    }
+
+    async function triggerScan() {
+        const btn = document.getElementById('btn-scan');
+        btn.disabled = true;
+        btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" class="opacity-75"></path></svg> Varrendo...';
+        
+        const res = await apiCall('/api/v1/admin/scan', { method: 'POST' });
+        if (res) {
+            showToast('Varredura iniciada com sucesso', 'success');
+        }
+        
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg> Scan Manual';
+            loadDashboard();
+        }, 3000);
+    }
+
+    async function retryVideo(videoId) {
+        const res = await apiCall(`/api/v1/admin/videos/${videoId}/retry`, { method: 'POST' });
+        if (res) {
+            showToast('Retry agendado com sucesso', 'success');
+            setTimeout(loadDashboard, 2000);
+        }
+    }
+
+    // Initial load + polling every 30s
+    loadDashboard();
+    setInterval(loadDashboard, 30000);
+</script>
+{% endblock %}

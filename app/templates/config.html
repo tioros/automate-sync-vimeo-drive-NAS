@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Configuração — Drive → Vimeo Sync{% endblock %}
+{% block page_title %}Configuração do Sistema{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+    <div class="glass-card p-6">
+        <form id="config-form" class="space-y-6">
+            <div>
+                <label for="drive_root" class="block text-sm font-medium text-gray-300 mb-2">ID da Pasta Raiz no Google Drive</label>
+                <input type="text" id="drive_root" required
+                    class="w-full px-4 py-3 bg-surface-800/80 border border-surface-700/50 rounded-xl text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 font-mono"
+                    placeholder="1A2B3C4D5E6F...">
+                <p class="text-xs text-gray-500 mt-2">ID visível na URL do Drive ao abrir a pasta</p>
+            </div>
+            <div>
+                <label for="vimeo_root" class="block text-sm font-medium text-gray-300 mb-2">URI da Pasta Raiz no Vimeo</label>
+                <input type="text" id="vimeo_root" required
+                    class="w-full px-4 py-3 bg-surface-800/80 border border-surface-700/50 rounded-xl text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 font-mono"
+                    placeholder="/folders/987654">
+                <p class="text-xs text-gray-500 mt-2">URI retornada pela API do Vimeo</p>
+            </div>
+            <div class="flex items-center justify-between pt-2">
+                <p class="text-xs text-gray-500" id="config-updated"></p>
+                <button type="submit" class="px-6 py-3 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-brand-600/25">Salvar</button>
+            </div>
+        </form>
+    </div>
+    <div class="mt-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-sm flex items-start gap-3">
+        <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <div>
+            <p class="font-medium mb-1">Informação</p>
+            <p>O sistema monitorará apenas esta pasta e suas subpastas. A estrutura de subpastas no Vimeo deve ser idêntica ao Drive.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadConfig(){
+    const r=await apiCall('/api/v1/config');
+    if(!r)return;
+    const c=await r.json();
+    document.getElementById('drive_root').value=c.drive_root_folder_id||'';
+    document.getElementById('vimeo_root').value=c.vimeo_root_folder_uri||'';
+    if(c.updated_at)document.getElementById('config-updated').textContent='Última atualização: '+formatDate(c.updated_at);
+}
+
+document.getElementById('config-form').addEventListener('submit',async(e)=>{
+    e.preventDefault();
+    const r=await apiCall('/api/v1/config',{
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+            drive_root_folder_id:document.getElementById('drive_root').value,
+            vimeo_root_folder_uri:document.getElementById('vimeo_root').value,
+        }),
+    });
+    if(r){showToast('Configuração salva com sucesso','success');loadConfig();}
+});
+
+loadConfig();
+</script>
+{% endblock %}

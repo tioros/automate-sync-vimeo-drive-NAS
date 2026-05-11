@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Vídeos — Drive → Vimeo Sync{% endblock %}
+{% block page_title %}Vídeos{% endblock %}
+
+{% block content %}
+<div class="glass-card p-5 mb-6">
+    <div class="flex flex-wrap items-end gap-4">
+        <div class="flex-1 min-w-[200px]">
+            <label class="block text-xs font-medium text-gray-400 mb-1.5">Status</label>
+            <select id="filter-status" class="w-full px-3 py-2.5 bg-surface-800/80 border border-surface-700/50 rounded-lg text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50">
+                <option value="">Todos</option>
+                <option value="DISCOVERED">🔍 DISCOVERED</option>
+                <option value="DRIVE_SYNC_PENDING">⏳ DRIVE_SYNC_PENDING</option>
+                <option value="DRIVE_READY">📁 DRIVE_READY</option>
+                <option value="VIMEO_UPLOADING">⬆️ VIMEO_UPLOADING</option>
+                <option value="VIMEO_TRANSCODING">🎬 VIMEO_TRANSCODING</option>
+                <option value="SUCCESS">✅ SUCCESS</option>
+                <option value="ERROR">❌ ERROR</option>
+            </select>
+        </div>
+        <div class="flex-1 min-w-[200px]">
+            <label class="block text-xs font-medium text-gray-400 mb-1.5">Pasta</label>
+            <select id="filter-path" class="w-full px-3 py-2.5 bg-surface-800/80 border border-surface-700/50 rounded-lg text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50">
+                <option value="">Todas</option>
+            </select>
+        </div>
+        <button onclick="loadVideos(1)" class="px-5 py-2.5 bg-brand-600/80 hover:bg-brand-500 text-white text-sm font-medium rounded-lg transition-all border border-brand-500/30">Filtrar</button>
+    </div>
+</div>
+
+<div class="glass-card overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead><tr class="border-b border-surface-700/30">
+                <th class="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase">Arquivo</th>
+                <th class="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase">Pasta</th>
+                <th class="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase">Status</th>
+                <th class="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase">Tamanho</th>
+                <th class="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase">Tentativas</th>
+                <th class="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase">Atualizado</th>
+                <th class="text-right px-5 py-4 text-xs font-semibold text-gray-400 uppercase">Ações</th>
+            </tr></thead>
+            <tbody id="videos-tbody"><tr><td colspan="7" class="px-5 py-8 text-center text-gray-500">Carregando...</td></tr></tbody>
+        </table>
+    </div>
+    <div class="flex items-center justify-between px-5 py-4 border-t border-surface-700/30">
+        <p class="text-sm text-gray-400" id="pag-info">—</p>
+        <div class="flex items-center gap-2" id="pag-ctrl"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const isAdmin='{{user.role}}'==='admin'; let curPage=1; const ps=50;
+async function loadPaths(){const r=await apiCall('/api/v1/reports/by-folder');if(r){const d=await r.json();const s=document.getElementById('filter-path');d.forEach(f=>{const o=document.createElement('option');o.value=f.relative_path;o.textContent=f.relative_path;s.appendChild(o);});}}
+async function loadVideos(p=1){curPage=p;const st=document.getElementById('filter-status').value;const pt=document.getElementById('filter-path').value;let u=`/api/v1/videos?page=${p}&page_size=${ps}`;if(st)u+=`&status=${st}`;if(pt)u+=`&relative_path=${encodeURIComponent(pt)}`;const r=await apiCall(u);if(!r)return;const d=await r.json();const tb=document.getElementById('videos-tbody');
+if(!d.items.length){tb.innerHTML='<tr><td colspan="7" class="px-5 py-12 text-center text-gray-500">Nenhum vídeo encontrado</td></tr>';}
+else{tb.innerHTML=d.items.map(v=>`<tr class="border-b border-surface-700/20 table-row-hover"><td class="px-5 py-3.5"><a href="/videos/${v.id}" class="text-gray-200 hover:text-brand-400 font-medium">${v.filename}</a></td><td class="px-5 py-3.5 text-gray-400 font-mono text-xs">${v.relative_path}</td><td class="px-5 py-3.5">${statusBadge(v.status)}</td><td class="px-5 py-3.5 text-gray-400">${formatSize(v.file_size)}</td><td class="px-5 py-3.5 text-gray-400">${v.retry_count}</td><td class="px-5 py-3.5 text-gray-400 text-xs">${formatDate(v.updated_at)}</td><td class="px-5 py-3.5 text-right space-x-2"><a href="/videos/${v.id}" class="text-brand-400 hover:text-brand-300 text-xs font-medium">Ver</a>${isAdmin&&v.status==='ERROR'?`<button onclick="retryV('${v.id}')" class="text-amber-400 hover:text-amber-300 text-xs font-medium">Retry</button>`:''}</td></tr>`).join('');}
+const tp=Math.ceil(d.total/ps);document.getElementById('pag-info').textContent=`${d.items.length} de ${d.total} (Pág ${p}/${tp||1})`;const c=document.getElementById('pag-ctrl');c.innerHTML='';
+if(p>1)c.innerHTML+=`<button onclick="loadVideos(${p-1})" class="px-3 py-1.5 bg-surface-700/50 hover:bg-surface-700 text-gray-300 text-xs rounded-lg">← Anterior</button>`;
+if(p<tp)c.innerHTML+=`<button onclick="loadVideos(${p+1})" class="px-3 py-1.5 bg-surface-700/50 hover:bg-surface-700 text-gray-300 text-xs rounded-lg">Próxima →</button>`;}
+async function retryV(id){const r=await apiCall(`/api/v1/admin/videos/${id}/retry`,{method:'POST'});if(r){showToast('Retry agendado','success');setTimeout(()=>loadVideos(curPage),2000);}}
+loadPaths();loadVideos();setInterval(()=>loadVideos(curPage),30000);
+</script>
+{% endblock %}

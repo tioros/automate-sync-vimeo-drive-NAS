@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Relatórios — Drive → Vimeo Sync{% endblock %}
+{% block page_title %}Relatórios{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="glass-card p-5 mb-6">
+    <div class="flex flex-wrap items-end gap-4">
+        <div class="flex-1 min-w-[180px]">
+            <label class="block text-xs font-medium text-gray-400 mb-1.5">Pasta</label>
+            <select id="rpt-path" class="w-full px-3 py-2.5 bg-surface-800/80 border border-surface-700/50 rounded-lg text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50">
+                <option value="">Todas</option>
+            </select>
+        </div>
+        <div class="flex-1 min-w-[180px]">
+            <label class="block text-xs font-medium text-gray-400 mb-1.5">Status</label>
+            <select id="rpt-status" class="w-full px-3 py-2.5 bg-surface-800/80 border border-surface-700/50 rounded-lg text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50">
+                <option value="">Todos</option>
+                <option value="SUCCESS">✅ SUCCESS</option>
+                <option value="ERROR">❌ ERROR</option>
+                <option value="VIMEO_UPLOADING">⬆️ VIMEO_UPLOADING</option>
+                <option value="VIMEO_TRANSCODING">🎬 VIMEO_TRANSCODING</option>
+                <option value="DRIVE_READY">📁 DRIVE_READY</option>
+                <option value="DRIVE_SYNC_PENDING">⏳ DRIVE_SYNC_PENDING</option>
+                <option value="DISCOVERED">🔍 DISCOVERED</option>
+            </select>
+        </div>
+        <button onclick="exportCSV()" class="px-5 py-2.5 bg-emerald-600/80 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-all border border-emerald-500/30 inline-flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Exportar CSV
+        </button>
+    </div>
+</div>
+
+<!-- Chart -->
+<div class="glass-card p-6 mb-6">
+    <h3 class="text-sm font-semibold text-gray-200 mb-4">Vídeos por Status</h3>
+    <div id="chart-container" class="flex items-end gap-3 h-48"></div>
+</div>
+
+<!-- By Folder Table -->
+<div class="glass-card p-6">
+    <h3 class="text-sm font-semibold text-gray-200 mb-4">Por Pasta</h3>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead><tr class="border-b border-surface-700/30">
+                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Pasta</th>
+                <th class="text-center px-3 py-3 text-xs font-semibold text-emerald-400 uppercase">✅</th>
+                <th class="text-center px-3 py-3 text-xs font-semibold text-red-400 uppercase">❌</th>
+                <th class="text-center px-3 py-3 text-xs font-semibold text-orange-400 uppercase">⬆️</th>
+                <th class="text-center px-3 py-3 text-xs font-semibold text-purple-400 uppercase">🎬</th>
+                <th class="text-center px-3 py-3 text-xs font-semibold text-blue-400 uppercase">📁</th>
+                <th class="text-center px-3 py-3 text-xs font-semibold text-gray-400 uppercase">Total</th>
+            </tr></thead>
+            <tbody id="folder-tbody"><tr><td colspan="7" class="px-4 py-6 text-center text-gray-500">Carregando...</td></tr></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const statusColors={SUCCESS:'#34d399',ERROR:'#f87171',VIMEO_UPLOADING:'#fb923c',VIMEO_TRANSCODING:'#a78bfa',DRIVE_READY:'#60a5fa',DRIVE_SYNC_PENDING:'#fbbf24',DISCOVERED:'#9ca3af'};
+
+async function loadReports(){
+    // Summary chart
+    const sr=await apiCall('/api/v1/reports/summary');
+    if(sr){
+        const d=await sr.json();
+        const chart=document.getElementById('chart-container');
+        const max=Math.max(...Object.values(d.by_status),1);
+        chart.innerHTML=Object.entries(d.by_status).map(([k,v])=>{
+            const pct=Math.max((v/max)*100,2);
+            const color=statusColors[k]||'#9ca3af';
+            return `<div class="flex-1 flex flex-col items-center gap-2">
+                <span class="text-xs font-bold text-gray-200">${v}</span>
+                <div class="w-full rounded-t-lg transition-all duration-500" style="height:${pct}%;background:${color};min-height:4px"></div>
+                <span class="text-[10px] text-gray-500 text-center leading-tight">${k.replace('_',' ')}</span>
+            </div>`;
+        }).join('');
+    }
+
+    // Load paths for filter
+    const fr=await apiCall('/api/v1/reports/by-folder');
+    if(fr){
+        const folders=await fr.json();
+        const sel=document.getElementById('rpt-path');
+        if(sel.options.length<=1){
+            folders.forEach(f=>{const o=document.createElement('option');o.value=f.relative_path;o.textContent=f.relative_path;sel.appendChild(o);});
+        }
+        const tb=document.getElementById('folder-tbody');
+        if(!folders.length){tb.innerHTML='<tr><td colspan="7" class="px-4 py-6 text-center text-gray-500">Sem dados</td></tr>';return;}
+        tb.innerHTML=folders.map(f=>`<tr class="border-b border-surface-700/20 table-row-hover">
+            <td class="px-4 py-3 text-gray-300 font-mono text-xs">${f.relative_path}</td>
+            <td class="px-3 py-3 text-center text-emerald-400">${f.counts.SUCCESS||0}</td>
+            <td class="px-3 py-3 text-center text-red-400">${f.counts.ERROR||0}</td>
+            <td class="px-3 py-3 text-center text-orange-400">${f.counts.VIMEO_UPLOADING||0}</td>
+            <td class="px-3 py-3 text-center text-purple-400">${f.counts.VIMEO_TRANSCODING||0}</td>
+            <td class="px-3 py-3 text-center text-blue-400">${f.counts.DRIVE_READY||0}</td>
+            <td class="px-3 py-3 text-center text-gray-300 font-semibold">${f.total}</td>
+        </tr>`).join('');
+    }
+}
+
+function exportCSV(){
+    const st=document.getElementById('rpt-status').value;
+    const pt=document.getElementById('rpt-path').value;
+    let u='/api/v1/reports/export?';
+    if(st)u+=`status=${st}&`;
+    if(pt)u+=`relative_path=${encodeURIComponent(pt)}&`;
+    window.open(u,'_blank');
+}
+
+loadReports();
+setInterval(loadReports,30000);
+</script>
+{% endblock %}

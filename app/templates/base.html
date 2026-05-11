@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Drive → Vimeo Sync — Sistema de sincronização automática de vídeos">
+    <title>{% block title %}Drive → Vimeo Sync{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc',
+                            400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca',
+                            800: '#3730a3', 900: '#312e81', 950: '#1e1b4b',
+                        },
+                        surface: {
+                            50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1',
+                            700: '#1e293b', 800: '#0f172a', 900: '#020617', 950: '#010409',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        
+        /* Glassmorphism card */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            border-radius: 1rem;
+        }
+        
+        /* Smooth pulse animation */
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
+        
+        /* Status badge glow */
+        .status-glow {
+            box-shadow: 0 0 12px -2px currentColor;
+        }
+        
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #818cf8, #6366f1, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* Toast notification */
+        .toast {
+            animation: slideIn 0.3s ease-out, slideOut 0.3s ease-in 2.7s forwards;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        
+        /* Progress bar animation */
+        .progress-bar-fill {
+            transition: width 0.6s ease-in-out;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #4338ca; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+        
+        /* Table row hover */
+        .table-row-hover {
+            transition: background-color 0.15s ease;
+        }
+        .table-row-hover:hover {
+            background-color: rgba(99, 102, 241, 0.08);
+        }
+
+        /* Sidebar link active */
+        .nav-link-active {
+            background: linear-gradient(90deg, rgba(99, 102, 241, 0.2), transparent);
+            border-left: 3px solid #6366f1;
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-surface-950 text-gray-200 min-h-screen">
+    {% if user is defined and user %}
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-surface-900/80 border-r border-surface-700/50 flex flex-col fixed h-full z-20">
+            <!-- Logo -->
+            <div class="p-6 border-b border-surface-700/50">
+                <h1 class="text-xl font-bold gradient-text">Drive → Vimeo</h1>
+                <p class="text-xs text-gray-500 mt-1">Sync Dashboard</p>
+            </div>
+            
+            <!-- Navigation -->
+            <nav class="flex-1 py-4 px-3 space-y-1">
+                <a href="/" id="nav-dashboard" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-surface-700/50 transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                    Dashboard
+                </a>
+                <a href="/videos" id="nav-videos" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-surface-700/50 transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    Vídeos
+                </a>
+                <a href="/reports" id="nav-reports" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-surface-700/50 transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    Relatórios
+                </a>
+                {% if user.role == 'admin' %}
+                <a href="/config" id="nav-config" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-surface-700/50 transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    Configuração
+                </a>
+                {% endif %}
+            </nav>
+            
+            <!-- User info -->
+            <div class="p-4 border-t border-surface-700/50">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center text-sm font-bold text-white">
+                        {{ user.email[0]|upper }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-200 truncate">{{ user.email }}</p>
+                        <p class="text-xs text-gray-500 capitalize">{{ user.role }}</p>
+                    </div>
+                    <a href="/logout" class="text-gray-400 hover:text-red-400 transition-colors" title="Sair">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    </a>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="flex-1 ml-64">
+            <!-- Top Bar -->
+            <header class="sticky top-0 z-10 bg-surface-950/80 backdrop-blur-xl border-b border-surface-700/30 px-8 py-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-100">{% block page_title %}Dashboard{% endblock %}</h2>
+                    <div class="flex items-center gap-4">
+                        <div id="connection-status" class="flex items-center gap-2 text-xs text-emerald-400">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse-soft"></span>
+                            Conectado
+                        </div>
+                        {% if user.role == 'admin' %}
+                        {% block admin_actions %}{% endblock %}
+                        {% endif %}
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Page Content -->
+            <div class="p-8">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    {% else %}
+    {% block fullpage %}{% endblock %}
+    {% endif %}
+    
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+    
+    <script>
+        // Highlight active nav link
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('nav a').forEach(link => {
+            const href = link.getAttribute('href');
+            if (href === currentPath || (href !== '/' && currentPath.startsWith(href))) {
+                link.classList.add('nav-link-active', 'text-white', 'bg-surface-700/50');
+            }
+        });
+        
+        // Toast helper
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const colors = {
+                success: 'bg-emerald-600/90 border-emerald-500',
+                error: 'bg-red-600/90 border-red-500',
+                info: 'bg-brand-600/90 border-brand-500',
+            };
+            const toast = document.createElement('div');
+            toast.className = `toast px-4 py-3 rounded-lg border ${colors[type]} text-white text-sm font-medium shadow-2xl backdrop-blur-sm`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        // API helper
+        async function apiCall(url, options = {}) {
+            try {
+                const res = await fetch(url, options);
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    return null;
+                }
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || `HTTP ${res.status}`);
+                }
+                return res;
+            } catch (e) {
+                showToast(e.message, 'error');
+                return null;
+            }
+        }
+        
+        // Format file size
+        function formatSize(bytes) {
+            if (!bytes) return '—';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            let i = 0;
+            let size = bytes;
+            while (size >= 1024 && i < units.length - 1) { size /= 1024; i++; }
+            return `${size.toFixed(1)} ${units[i]}`;
+        }
+        
+        // Format date
+        function formatDate(dateStr) {
+            if (!dateStr) return '—';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'});
+        }
+
+        // Status badge HTML
+        function statusBadge(status) {
+            const map = {
+                'DISCOVERED':        { color: 'bg-gray-500/20 text-gray-400 border-gray-500/30', icon: '🔍' },
+                'DRIVE_SYNC_PENDING':{ color: 'bg-amber-500/20 text-amber-400 border-amber-500/30', icon: '⏳' },
+                'DRIVE_READY':       { color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', icon: '📁' },
+                'VIMEO_UPLOADING':   { color: 'bg-orange-500/20 text-orange-400 border-orange-500/30', icon: '⬆️' },
+                'VIMEO_TRANSCODING': { color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', icon: '🎬' },
+                'SUCCESS':           { color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: '✅' },
+                'ERROR':             { color: 'bg-red-500/20 text-red-400 border-red-500/30', icon: '❌' },
+            };
+            const s = map[status] || { color: 'bg-gray-500/20 text-gray-400 border-gray-500/30', icon: '?' };
+            return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${s.color}">${s.icon} ${status}</span>`;
+        }
+
+        // Connection health check
+        setInterval(async () => {
+            try {
+                const res = await fetch('/health');
+                const el = document.getElementById('connection-status');
+                if (res.ok) {
+                    el.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse-soft"></span> Conectado';
+                    el.className = 'flex items-center gap-2 text-xs text-emerald-400';
+                } else { throw new Error(); }
+            } catch {
+                const el = document.getElementById('connection-status');
+                if (el) {
+                    el.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-400"></span> Desconectado';
+                    el.className = 'flex items-center gap-2 text-xs text-red-400';
+                }
+            }
+        }, 30000);
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
